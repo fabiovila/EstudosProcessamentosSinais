@@ -2,15 +2,10 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
-#include <limits.h>
-#include <complex.h> 
-#include <fftw3.h>
 
 #define PLAY        0
 #define STOP        1
-
-#define REAL        0
-#define IMG         1
+#define FREQ		440 
 
 typedef struct {
     SDL_AudioDeviceID device;
@@ -21,18 +16,12 @@ typedef struct {
     int             Play;	
     int             *Wave;
     int             Max;
-    int             Min;
 } Sound;
-
-typedef struct {
-    SDL_Renderer *Render;
-    SDL_Window   *Window;
-} Window;
 
 
 Sound sound;
 
-Window * WindowCreate();
+SDL_Renderer * WindowCreate();
 void DrawWave(SDL_Renderer * Render, int x, int y, int width, int length, int *data, int buffersize , float xscale, int max);
 
 void SDLAudioCallback(void *data, Uint8 *buffer, int length) {
@@ -43,9 +32,8 @@ void SDLAudioCallback(void *data, Uint8 *buffer, int length) {
 
     for(int i = 0; i < len; i++)
     {
-        //BufferOut[i] = (int16_t) (( 2500.0f * sin(sound->samplePos * sound->step) ) + ((double) rand() / RAND_MAX) * 100.0f);
+        BufferOut[i] = (int16_t) (( 2500.0f * sin(sound->samplePos * sound->step) ) + ((double) rand() / RAND_MAX) * 100.0f);
         if (BufferOut[i] > sound->Max) sound->Max = BufferOut[i];
-        if (BufferOut[i] < sound->Min) sound->Min = BufferOut[i];
         sound->Wave[i] = BufferOut[i];
         sound->samplePos++;
     }	
@@ -55,10 +43,8 @@ void SDLAudioCallback(void *data, Uint8 *buffer, int length) {
 void sound_init(Sound *sound) {
 
     sound->FreqSample 		= 44100;
-	sound->step 	        = (double) ((M_PI * 2) / sound->FreqSample );
+	sound->step 	        = (double) ((M_PI * 2) / sound->FreqSample ) * FREQ;
     sound->samplePos        = 0;
-    sound->Min              = INT_MIN;
-    sound->Min              = INT_MAX;
 	printf ("Step: %f \n", sound->step);
 
     // https://wiki.libsdl.org/SDL_AudioSpec
@@ -67,11 +53,11 @@ void sound_init(Sound *sound) {
     desired.freq = sound->FreqSample;
     desired.format = AUDIO_S16SYS; 
     desired.channels = 1;
-    desired.samples = 4096;
+    desired.samples = 2048;
     desired.callback = SDLAudioCallback;
     desired.userdata = sound;
 
-    sound->device = SDL_OpenAudioDevice(NULL, 1, &desired, &sound->Obtained, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+    sound->device = SDL_OpenAudioDevice(NULL, 0, &desired, &sound->Obtained, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
     if (sound->device == 0 || desired.format != sound->Obtained.format) { 
         printf ("OpenAudioDevice failed");
         exit(-1);
@@ -96,45 +82,22 @@ int main () {
     SDL_Event event;
 
     SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO);
-    Window *W = WindowCreate();
+    SDL_Renderer * Render = WindowCreate();
     atexit(SDL_Quit);   
 	 
 	sound_init(&sound);
     sound.Play              = PLAY;
-    
-	
-    double *in;// , *out; 
-    fftw_complex *out;
-    fftw_plan p;
-    in = (double*) fftw_malloc(sizeof(double) * sound.Obtained.samples + 1);
-    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * sound.Obtained.samples);
-    //out = (double*) fftw_malloc(sizeof(double) * 2048 + 1);
-    int *mag = malloc(sizeof(int) * sound.Obtained.samples + 1);
-    p = fftw_plan_dft_r2c_1d(sound.Obtained.samples, in, out, FFTW_ESTIMATE);
-    int max = INT_MIN;
-
     SDL_PauseAudioDevice(sound.device, PLAY);
+	
     while( quit == 0 ){
 
-        SDL_SetRenderDrawColor(W->Render, 0, 0, 0, 255);
-        SDL_RenderClear(W->Render);        
-        int w,h;
-        SDL_GetWindowSize(W->Window,&w,&h);
-        DrawWave(W->Render,1,1,w,h/2,sound.Wave,sound.Obtained.samples,(float) sound.Obtained.samples / h ,sound.Max);
+        SDL_SetRenderDrawColor(Render, 0, 0, 0, 255);
+        SDL_RenderClear(Render);
+        
 
-        for (int i = 0; i < sound.Obtained.samples; i++) {
-            in[i] = sound.Wave[i];
-        }
-        fftw_execute(p);
-        
-        for (int i = 0; i < sound.Obtained.samples >> 1; i++) {
-            mag[i] = cabs(out[i]);
-            //mag[i] = out[i];
-            if (mag[i] > max) max = mag[i];
-        }
-        
-        DrawWave(W->Render,1,h/2,w,h,mag,sound.Obtained.samples >> 1, 1 , max);
-        SDL_RenderPresent(W->Render);
+        DrawWave(Render,1,1,1024,256,sound.Wave,2048, 0.25,sound.Max);
+
+        SDL_RenderPresent(Render);
 
 
             while ( SDL_PollEvent( &event ) ) {
@@ -160,7 +123,7 @@ int main () {
                 }
 
             }
-            SDL_Delay(30);
+            SDL_Delay(100);
     }	
 
 	SDL_CloseAudioDevice(sound.device);
@@ -169,18 +132,14 @@ int main () {
 }
 
 
-Window * WindowCreate() {
+SDL_Renderer * WindowCreate() {
     SDL_Window* window = SDL_CreateWindow("",
 										  SDL_WINDOWPOS_UNDEFINED,
 										  SDL_WINDOWPOS_UNDEFINED,
 										  512,
 										  256,
  										  SDL_WINDOW_RESIZABLE);
-    Window *W = malloc(sizeof(Window));
-    W->Render = SDL_CreateRenderer(window, -1, 0);
-    W->Window = window;
-
-    return W;
+    return SDL_CreateRenderer(window, -1, 0);
 }
 
 void DrawWave(SDL_Renderer * Render, int x, int y, int width, int length, int *data, int buffersize , float xscale, int max) {
@@ -189,7 +148,6 @@ void DrawWave(SDL_Renderer * Render, int x, int y, int width, int length, int *d
         if (max == 0) max = 1;
         float scale = (float) (length >> 1) / max;
         int   xscaleint = 1.0f / xscale;
-        if (xscaleint < 1) xscaleint = 1;
         
         for (int i = 0 ; i < buffersize; i += xscaleint ) {
             int c = abs(data[i] * (255.0f / max)) / 25;
