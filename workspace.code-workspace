@@ -9,7 +9,9 @@
 			"random": "c",
 			"*.ipp": "c",
 			"string_view": "c",
-			"tuple": "c"
+			"tuple": "c",
+			"complex": "cpp"
 		}
 	}
+	
 }

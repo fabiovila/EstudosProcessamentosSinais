@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-g -Wall $(shell sdl2-config --cflags)
-LDFLAGS=$(shell sdl2-config --libs) -lSDL2_mixer -lm -lfftw3
+CFLAGS=-g -Wall $(shell sdl2-config --cflags) -O5 -mavx
+LDFLAGS=$(shell sdl2-config --libs) -lSDL2_mixer -lm -lfftw3f
 
 PROGRAMS=$(basename $(wildcard *.c))
 

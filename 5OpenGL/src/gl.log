@@ -1,0 +1,6 @@
+GL_LOG_FILE log. local time Tue Aug  1 18:20:21 2023
+
+starting GLFW 3.3.8 X11 GLX EGL OSMesa clock_gettime evdev sharedrenderer: Mesa Intel(R) UHD Graphics 620 (WHL GT2)
+version: 4.6 (Core Profile) Mesa 23.1.4
+ERROR: opening file for reading: test_vs.glsl
+ERROR: opening file for reading: test_fs.glsl
